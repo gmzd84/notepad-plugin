@@ -26,6 +26,8 @@
 
 #include <string>
 
+#include "strExt.h"
+
 extern HINSTANCE g_Inst;
 extern NppData g_nppData;
 

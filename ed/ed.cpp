@@ -146,12 +146,18 @@ extern "C"{
 	void lua_script();
 	void json_format();
 	void xml_format();
+	void unique_text();
+	void sort_text();
+	void html_encode();
 
 	FuncItem g_fi[] = {
 		{TEXT("lua run"),lua_run,0,false,NULL},
 		{TEXT("lua script"),lua_script,1,false,NULL},
 		{TEXT("json format"),json_format,2,false,NULL},
 		{TEXT("xml format"),xml_format,3,false,NULL},
+		{TEXT("unique"),unique_text,4,false,NULL},
+		{TEXT("sort"),sort_text,5,false,NULL},
+		{TEXT("html encode"),html_encode,6,false,NULL},
 	};
 
 	void setInfo(NppData nd)

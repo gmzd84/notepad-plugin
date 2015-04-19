@@ -28,7 +28,7 @@ static void callPopen(const std::string &cmd,popenOutProc *proc)
 	if(pf)
 	{
 		std::string str;
-		str.reserve( 2*1024 );
+		str.reserve( 1*1024 );
 		
 		proc->begin();
 
@@ -99,10 +99,11 @@ struct procOnceOut : popenOutProc
 
 struct cmdOutMonitor : popenOutProc
 {
-	void (*fn)(const std::string &line);
+	void (*fn)(const std::string &line,void*);
+	void *arg;
 
-	cmdOutMonitor(void (*f)(const std::string &line))
-		:fn(f)
+	cmdOutMonitor(void (*f)(const std::string &line,void*),void*a)
+		:fn(f),arg(a)
 	{
 
 	}
@@ -111,13 +112,32 @@ struct cmdOutMonitor : popenOutProc
 	{
 		if(fn)
 		{
-			fn(line);
+			fn(line,arg);
 		}		
 	}
 };
 
 extern "C"
 {
+	void execCmd( const std::string &cmd )
+	{
+		callPopen( cmd,NULL );
+	}
+
+	static void execCmdThr( void *arg )
+	{
+		std::string *cmd = (std::string *)arg;
+
+		callPopen( *cmd,NULL );
+		delete cmd;
+	}
+	void execCmdAsync( const std::string &cmd )
+	{
+		std::string *nc = new std::string(cmd);
+
+		::_beginthread( execCmdThr,0,nc );
+	}
+
 	void getCmdOut( const std::string &cmd,std::string &s )
 	{
 		procOnceOut poo( NULL );
@@ -130,26 +150,29 @@ extern "C"
 	struct monitorArg
 	{
 		std::string cmd;
-		void (*monitor)(const std::string &line);
+
+		void (*monitor)(const std::string &line,void *);
+		void *arg;
 	};
 
-	void monitorThr( void *d )
+	static void monitorThr( void *d )
 	{
 		monitorArg *ma = (monitorArg*)d;
 		
-		cmdOutMonitor m(ma->monitor);
+		cmdOutMonitor m(ma->monitor,ma->arg);
 
 		callPopen( ma->cmd,&m );
 
 		delete ma;
 	}
 
-	void monitorCmdOut( const std::string &cmd,void (*monitor)(const std::string &line))
+	void monitorCmdOut( const std::string &cmd,void (*monitor)(const std::string &line,void *),void *arg)
 	{
 		monitorArg *ma = new monitorArg;
 
 		ma->cmd = cmd;
 		ma->monitor = monitor;
+		ma->arg = arg;
 
 		::_beginthread(monitorThr,0,ma);
 	}
