@@ -187,13 +187,13 @@ extern "C"
 		int n = lua_gettop(L);
 		if( n != 1 )
 		{
-			lua_pushliteral(L,"no argument when to call prompt.");
+			lua_pushliteral(L,"no argument when to call popen.");
 			return lua_error(L);
 		}
 
 		if( !lua_isstring(L,1) )
 		{
-			lua_pushliteral(L,"the argument is not string when to call prompt.");
+			lua_pushliteral(L,"the argument is not string when to call popen.");
 			return lua_error(L);
 		}
 
@@ -204,6 +204,77 @@ extern "C"
 
 		lua_pushlstring(L,ii.c_str(),ii.size());
 		return 1;
+	}
+
+	int lua_closeSocket( lua_State *L )
+	{
+		int n = lua_gettop(L);
+		if( n != 1 )
+		{
+			lua_pushliteral(L,"no argument when to call closeSocket.");
+			return lua_error(L);
+		}
+
+		if( !lua_isinteger(L,1) )
+		{
+			lua_pushliteral(L,"the argument is not integer when to call closeSocket.");
+			return lua_error(L);
+		}
+
+		int s = lua_tointeger(L,1);
+
+		
+		closeSocket(s);
+
+
+		return 0;
+	}
+
+	int lua_udpSend( lua_State *L )
+	{
+		int n = lua_gettop(L);
+		if( n != 4 )
+		{
+			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\" );");
+			return lua_error(L);
+		}
+
+		if( !lua_isstring(L,1) )
+		{
+			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\",-1 );");
+			return lua_error(L);
+		}
+
+		if( !lua_isinteger(L,2) )
+		{
+			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\",-1 );");
+			return lua_error(L);
+		}
+
+		if( !lua_isstring(L,3) )
+		{
+			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\",-1 );");
+			return lua_error(L);
+		}
+
+		if( !lua_isinteger(L,4) )
+		{
+			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\",-1 );");
+			return lua_error(L);
+		}
+
+		std::string ip = lua_tostring(L,1);
+		unsigned short port  = lua_tointeger(L,2);
+		std::string si = lua_tostring(L,3);
+		unsigned hdl  = lua_tointeger(L,4);
+
+		std::string rv;
+		unsigned r = udp_send_rcv(hdl,ip,port,si,rv );
+
+		lua_pushinteger( L,r );
+		lua_pushlstring( L,rv.c_str(),rv.size() );
+
+		return 2;
 	}
 
 	void regLuaFun(lua_State *L)
@@ -220,6 +291,9 @@ extern "C"
 		lua_register( L,"prompt",lua_prompt );
 
 		lua_register( L,"popen",lua_popen );
+
+		lua_register( L,"closeSocket",lua_closeSocket );
+		lua_register( L,"udpSend",lua_udpSend );
 	}
 	void execLua( const std::string& lua_script )
 	{

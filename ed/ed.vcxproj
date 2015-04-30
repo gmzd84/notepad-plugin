@@ -123,6 +123,8 @@
     <ClInclude Include="PluginInterface.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Scintilla.h" />
+    <ClInclude Include="sqlite\sqlite3.h" />
+    <ClInclude Include="sqlite\sqlite3ext.h" />
     <ClInclude Include="StaticDialog.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="strExt.h" />
@@ -183,6 +185,7 @@
     <ClCompile Include="lua_wrapper.cpp" />
     <ClCompile Include="popen.cpp" />
     <ClCompile Include="scan_fs.cpp" />
+    <ClCompile Include="sqlite\sqlite3.c" />
     <ClCompile Include="StaticDialog.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

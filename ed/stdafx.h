@@ -41,6 +41,7 @@ void setText( const std::string &t );
 void getCurText( std::string &t );
 void setCurText( const std::string &t );
 
+
 extern "C"
 {
 	void showInfo(const std::string &capation,const std::string &info ,const std::string help);
@@ -50,4 +51,8 @@ extern "C"
 	void getInput(const std::string &capation,void(*fn)(const std::string&));
 
 	void getCmdOut( const std::string &cmd,std::string &s );
+
+	extern void closeSocket(int s);
+	unsigned udp_send_rcv( unsigned p,const std::string & ip,unsigned short port,const std::string &snd, std::string &rcv );
+	unsigned tcp_send_rcv( unsigned p,const std::string & ip,unsigned short port,const std::string &snd, std::string &rcv );
 };

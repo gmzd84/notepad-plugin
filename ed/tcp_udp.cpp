@@ -195,6 +195,7 @@ void udp_rs( SOCKET s,void *arg )
 	}
 
 	delete []buf;
+	delete ura;
 }
 
 void tcp_rs( SOCKET s,void *arg )
@@ -230,10 +231,11 @@ void tcp_rs( SOCKET s,void *arg )
 	}
 
 	delete []buf;
+	delete ura;
 }
 
 
-bool udp_send_wait( SOCKET &s,const char *sip,unsigned port,const std::string &snd,char *buf,int len )
+bool udp_send_wait( SOCKET &s,const char *sip,unsigned port,const std::string &snd,char *buf,int &len )
 {
 	unsigned ip = htonl(0x7f000001);
 
@@ -286,13 +288,15 @@ bool udp_send_wait( SOCKET &s,const char *sip,unsigned port,const std::string &s
 
 			return false;
 		}
+
+		len = ret;
 	}
 
 	return true;
 }
 
 
-bool tcp_send_wait( SOCKET &s,const char *sip,unsigned port,const std::string &snd,char *buf,int len )
+bool tcp_send_wait( SOCKET &s,const char *sip,unsigned port,const std::string &snd,char *buf,int &len )
 {
 	unsigned ip = htonl(0x7f000001);
 
@@ -349,11 +353,59 @@ bool tcp_send_wait( SOCKET &s,const char *sip,unsigned port,const std::string &s
 
 			return false;
 		}
+
+		len = ret;
 	}
 
 	return true;
 }
+extern "C"
+{
+	void closeSocket(int s)
+	{
+		SOCKET ss = s;
 
+		::closesocket(ss);
+	}
+
+	unsigned udp_send_rcv( unsigned p,const std::string & ip,unsigned short port,const std::string &snd, std::string &rcv )
+	{
+		int len = 16*1024;
+		char *buf = new char[len+1];
+
+		SOCKET s = p;
+
+		bool r = udp_send_wait( s,ip.c_str(),port,snd,buf,len );
+		if( r )
+		{
+			rcv = "";
+			rcv.append(buf,len);
+
+			return s;
+		}
+
+		return (unsigned)-1;
+	}
+
+	unsigned tcp_send_rcv( unsigned p,const std::string & ip,unsigned short port,const std::string &snd, std::string &rcv )
+	{
+		int len = 16*1024;
+		char *buf = new char[len+1];
+
+		SOCKET s = p;
+
+		bool r = tcp_send_wait( s,ip.c_str(),port,snd,buf,len );
+		if( r )
+		{
+			rcv = "";
+			rcv.append(buf,len);
+
+			return s;
+		}
+
+		return (unsigned)-1;
+	}
+};
 
 
 

@@ -22,6 +22,9 @@
     <Filter Include="tinyxml">
       <UniqueIdentifier>{ce0fdd5c-eb0d-48bc-a8d5-0338b7010c27}</UniqueIdentifier>
     </Filter>
+    <Filter Include="sqlite">
+      <UniqueIdentifier>{0b9799da-fe04-4958-bdf4-49850682fb4c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -170,6 +173,15 @@
     </ClInclude>
     <ClInclude Include="lock.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="strExt.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="sqlite\sqlite3.h">
+      <Filter>sqlite</Filter>
+    </ClInclude>
+    <ClInclude Include="sqlite\sqlite3ext.h">
+      <Filter>sqlite</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -325,6 +337,15 @@
     </ClCompile>
     <ClCompile Include="popen.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="tcp_udp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="scan_fs.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="sqlite\sqlite3.c">
+      <Filter>sqlite</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
