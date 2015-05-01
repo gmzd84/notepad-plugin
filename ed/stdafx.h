@@ -28,6 +28,8 @@
 
 #include "strExt.h"
 
+#include "tcp_udp.h"
+
 extern HINSTANCE g_Inst;
 extern NppData g_nppData;
 

@@ -33,19 +33,20 @@ extern "C"
 	int lua_setText( lua_State *L )
 	{
 		int n = lua_gettop(L);
-		if( n != 1 )
+		if( n < 1 )
 		{
 			lua_pushliteral(L,"no argument when to call setText.");
 			return lua_error(L);
 		}
 
-		if( !lua_isstring(L,1) )
+		if( !lua_isstring(L,-1) )
 		{
 			lua_pushliteral(L,"the argument is not string when to call setText.");
 			return lua_error(L);
 		}
 
-		std::string s = lua_tostring(L,1);
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
 
 		setText( s );
 		return 0;
@@ -54,19 +55,20 @@ extern "C"
 	int lua_appendText( lua_State *L )
 	{
 		int n = lua_gettop(L);
-		if( n != 1 )
+		if( n < 1 )
 		{
 			lua_pushliteral(L,"no argument when to call appendText.");
 			return lua_error(L);
 		}
 
-		if( !lua_isstring(L,1) )
+		if( !lua_isstring(L,-1) )
 		{
 			lua_pushliteral(L,"the argument is not string when to call appendText.");
 			return lua_error(L);
 		}
 
-		std::string s = lua_tostring(L,1);
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
 
 		appendText( s );
 		return 0;
@@ -75,19 +77,20 @@ extern "C"
 	int lua_replaceSel( lua_State *L )
 	{
 		int n = lua_gettop(L);
-		if( n != 1 )
+		if( n < 1 )
 		{
 			lua_pushliteral(L,"no argument when to call replaceSel.");
 			return lua_error(L);
 		}
 
-		if( !lua_isstring(L,1) )
+		if( !lua_isstring(L,-1) )
 		{
 			lua_pushliteral(L,"the argument is not string when to call replaceSel.");
 			return lua_error(L);
 		}
 
-		std::string s = lua_tostring(L,1);
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
 
 		replaceCurSel( s );
 		return 0;
@@ -96,19 +99,20 @@ extern "C"
 	int lua_msg( lua_State *L )
 	{
 		int n = lua_gettop(L);
-		if( n != 1 )
+		if( n < 1 )
 		{
 			lua_pushliteral(L,"no argument when to call msg.");
 			return lua_error(L);
 		}
 
-		if( !lua_isstring(L,1) )
+		if( !lua_isstring(L,-1) )
 		{
 			lua_pushliteral(L,"the argument is not string when to call msg.");
 			return lua_error(L);
 		}
 
-		std::string s = lua_tostring(L,1);
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
 
 		showInfo( "lua message", s,lua_help );
 		return 0;
@@ -117,19 +121,20 @@ extern "C"
 	int lua_msg2( lua_State *L )
 	{
 		int n = lua_gettop(L);
-		if( n != 1 )
+		if( n < 1 )
 		{
 			lua_pushliteral(L,"no argument when to call msg.");
 			return lua_error(L);
 		}
 
-		if( !lua_isstring(L,1) )
+		if( !lua_isstring(L,-1) )
 		{
 			lua_pushliteral(L,"the argument is not string when to call msg.");
 			return lua_error(L);
 		}
 
-		std::string s = lua_tostring(L,1);
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
 
 		::MessageBoxA(NULL,s.c_str(),"lua message",MB_OK);
 		return 0;
@@ -138,19 +143,20 @@ extern "C"
 	int lua_confirm( lua_State *L )
 	{
 		int n = lua_gettop(L);
-		if( n != 1 )
+		if( n < 1 )
 		{
 			lua_pushliteral(L,"no argument when to call msg.");
 			return lua_error(L);
 		}
 
-		if( !lua_isstring(L,1) )
+		if( !lua_isstring(L,-1) )
 		{
 			lua_pushliteral(L,"the argument is not string when to call msg.");
 			return lua_error(L);
 		}
 
-		std::string s = lua_tostring(L,1);
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
 
 		int sel = ::MessageBoxA(NULL,s.c_str(),"lua message",MB_YESNO);
 
@@ -161,19 +167,20 @@ extern "C"
 	int lua_prompt( lua_State *L )
 	{
 		int n = lua_gettop(L);
-		if( n != 1 )
+		if( n < 1 )
 		{
 			lua_pushliteral(L,"no argument when to call prompt.");
 			return lua_error(L);
 		}
 
-		if( !lua_isstring(L,1) )
+		if( !lua_isstring(L,-1) )
 		{
 			lua_pushliteral(L,"the argument is not string when to call prompt.");
 			return lua_error(L);
 		}
 
-		std::string s = lua_tostring(L,1);
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
 
 		std::string ii;
 		extractInput(s,ii);
@@ -181,101 +188,10 @@ extern "C"
 		lua_pushlstring(L,ii.c_str(),ii.size());
 		return 1;
 	}
-
-	int lua_popen( lua_State *L )
-	{
-		int n = lua_gettop(L);
-		if( n != 1 )
-		{
-			lua_pushliteral(L,"no argument when to call popen.");
-			return lua_error(L);
-		}
-
-		if( !lua_isstring(L,1) )
-		{
-			lua_pushliteral(L,"the argument is not string when to call popen.");
-			return lua_error(L);
-		}
-
-		std::string s = lua_tostring(L,1);
-
-		std::string ii;
-		getCmdOut(s,ii);
-
-		lua_pushlstring(L,ii.c_str(),ii.size());
-		return 1;
-	}
-
-	int lua_closeSocket( lua_State *L )
-	{
-		int n = lua_gettop(L);
-		if( n != 1 )
-		{
-			lua_pushliteral(L,"no argument when to call closeSocket.");
-			return lua_error(L);
-		}
-
-		if( !lua_isinteger(L,1) )
-		{
-			lua_pushliteral(L,"the argument is not integer when to call closeSocket.");
-			return lua_error(L);
-		}
-
-		int s = lua_tointeger(L,1);
-
-		
-		closeSocket(s);
-
-
-		return 0;
-	}
-
-	int lua_udpSend( lua_State *L )
-	{
-		int n = lua_gettop(L);
-		if( n != 4 )
-		{
-			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\" );");
-			return lua_error(L);
-		}
-
-		if( !lua_isstring(L,1) )
-		{
-			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\",-1 );");
-			return lua_error(L);
-		}
-
-		if( !lua_isinteger(L,2) )
-		{
-			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\",-1 );");
-			return lua_error(L);
-		}
-
-		if( !lua_isstring(L,3) )
-		{
-			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\",-1 );");
-			return lua_error(L);
-		}
-
-		if( !lua_isinteger(L,4) )
-		{
-			lua_pushliteral(L,"correct call is : s,r = udpSend( \"127.0.0.1\",7374,\"sendinfo\",-1 );");
-			return lua_error(L);
-		}
-
-		std::string ip = lua_tostring(L,1);
-		unsigned short port  = lua_tointeger(L,2);
-		std::string si = lua_tostring(L,3);
-		unsigned hdl  = lua_tointeger(L,4);
-
-		std::string rv;
-		unsigned r = udp_send_rcv(hdl,ip,port,si,rv );
-
-		lua_pushinteger( L,r );
-		lua_pushlstring( L,rv.c_str(),rv.size() );
-
-		return 2;
-	}
+	
+	extern void popen_reg(lua_State *L );
+	extern void tcp_udp_reg(lua_State *L );
+	extern void scan_reg( lua_State *L );
 
 	void regLuaFun(lua_State *L)
 	{
@@ -290,10 +206,9 @@ extern "C"
 		lua_register( L,"confirm",lua_confirm );
 		lua_register( L,"prompt",lua_prompt );
 
-		lua_register( L,"popen",lua_popen );
-
-		lua_register( L,"closeSocket",lua_closeSocket );
-		lua_register( L,"udpSend",lua_udpSend );
+		scan_reg( L );
+		popen_reg( L );
+		tcp_udp_reg( L );
 	}
 	void execLua( const std::string& lua_script )
 	{

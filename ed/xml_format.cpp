@@ -50,7 +50,7 @@ extern "C"
 	};
 	void pre( ElementInfo &ei,std::ostringstream &os )
 	{
-		for( unsigned i=0;i<ei.depth;i++ )
+		for( int i=0;i<ei.depth;i++ )
 		{
 			os<<"    ";
 		}

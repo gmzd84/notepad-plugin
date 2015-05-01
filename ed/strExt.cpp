@@ -23,6 +23,24 @@ std::string int_to_str( long long d )
 	return os.str();
 }
 
+unsigned long long str_to_uint( const std::string &s )
+{
+	unsigned long long d;
+	std::stringstream os(s);
+	os>>d;
+	return d;
+}
+
+
+long long str_to_int( const std::string &s )
+{
+	long long d;
+
+	std::stringstream os(s);
+	os>>d;
+	return d;
+}
+
 void str_break( const std::string &s,const std::string &b,std::string &part1,std::string &part2 )
 {
 	std::string::size_type p = s.find(b);
@@ -257,6 +275,53 @@ extern "C"
 		cm['&'] = "&amp;";
 
 		replace_set( t,cm );
+
+		setCurText(t);
+	}
+
+	void html_decode()
+	{
+		std::string t;
+		getCurText(t);
+
+		std::map<std::string,char> cm;
+		cm["&lt;"] = '<';
+		cm["&gt;"] = '>';
+		cm["&#40;"] = '(';
+		cm["&#41;"] = ')';
+		cm["&amp;"] = '&';
+
+		std::ostringstream os;
+		for(unsigned i=0,n=t.size();i<n;++i )
+		{
+			if( '&' != t[i] )
+			{
+				os<<t[i];
+			}
+			else
+			{
+				unsigned p  = t.find( ';',i+1 );
+
+				if( p - i > 5 )
+				{
+					os<<t[i];
+				}
+				else
+				{
+					std::string a = t.substr(i,p-i+1);
+
+					auto it = cm.find( a );
+					if( it != cm.end() )
+					{
+						os<<it->second;
+						i=p;
+					}
+				}
+
+			}
+		}
+
+		t = os.str();
 
 		setCurText(t);
 	}

@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "lua/lua.hpp"
 
 struct popenOutProc
 {
@@ -29,7 +30,7 @@ static void callPopen(const std::string &cmd,popenOutProc *proc)
 	{
 		std::string str;
 		str.reserve( 1*1024 );
-		
+
 		proc->begin();
 
 		while( !feof(pf) )
@@ -45,7 +46,7 @@ static void callPopen(const std::string &cmd,popenOutProc *proc)
 			if( buf[0] == '\n'|| str.size()+1 >= str.capacity() )
 			{
 				proc->exec( str );
-				
+
 				str = "";
 			}
 		}
@@ -84,7 +85,7 @@ struct procOnceOut : popenOutProc
 				allOut += "\n";
 			}
 		}
-		
+
 	}
 
 	virtual void end() 
@@ -117,63 +118,143 @@ struct cmdOutMonitor : popenOutProc
 	}
 };
 
+
+void execCmd( const std::string &cmd )
+{
+	callPopen( cmd,NULL );
+}
+
+static void execCmdThr( void *arg )
+{
+	std::string *cmd = (std::string *)arg;
+
+	callPopen( *cmd,NULL );
+	delete cmd;
+}
+void execCmdAsync( const std::string &cmd )
+{
+	std::string *nc = new std::string(cmd);
+
+	::_beginthread( execCmdThr,0,nc );
+}
+
+void getCmdOut( const std::string &cmd,std::string &s )
+{
+	procOnceOut poo( NULL );
+
+	callPopen( cmd,&poo );
+
+	s = poo.allOut;
+}
+
+struct monitorArg
+{
+	std::string cmd;
+
+	void (*monitor)(const std::string &line,void *);
+	void *arg;
+};
+
+static void monitorThr( void *d )
+{
+	monitorArg *ma = (monitorArg*)d;
+
+	cmdOutMonitor m(ma->monitor,ma->arg);
+
+	callPopen( ma->cmd,&m );
+
+	delete ma;
+}
+
+void monitorCmdOut( const std::string &cmd,void (*monitor)(const std::string &line,void *),void *arg)
+{
+	monitorArg *ma = new monitorArg;
+
+	ma->cmd = cmd;
+	ma->monitor = monitor;
+	ma->arg = arg;
+
+	::_beginthread(monitorThr,0,ma);
+}
+
+
 extern "C"
 {
-	void execCmd( const std::string &cmd )
+	int lua_popen( lua_State *L )
 	{
-		callPopen( cmd,NULL );
+		int n = lua_gettop(L);
+		if( n < 1 )
+		{
+			lua_pushliteral(L,"no argument when to call popen.");
+			return lua_error(L);
+		}
+
+		if( !lua_isstring(L,-1) )
+		{
+			lua_pushliteral(L,"the argument is not string when to call popen.");
+			return lua_error(L);
+		}
+
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
+
+		std::string ii;
+		getCmdOut(s,ii);
+
+		lua_pushlstring(L,ii.c_str(),ii.size());
+		return 1;
 	}
 
-	static void execCmdThr( void *arg )
+	int lua_system( lua_State *L )
 	{
-		std::string *cmd = (std::string *)arg;
+		int n = lua_gettop(L);
+		if( n < 1 )
+		{
+			lua_pushliteral(L,"no argument when to call popen.");
+			return lua_error(L);
+		}
 
-		callPopen( *cmd,NULL );
-		delete cmd;
-	}
-	void execCmdAsync( const std::string &cmd )
-	{
-		std::string *nc = new std::string(cmd);
+		if( !lua_isstring(L,-1) )
+		{
+			lua_pushliteral(L,"the argument is not string when to call popen.");
+			return lua_error(L);
+		}
 
-		::_beginthread( execCmdThr,0,nc );
-	}
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
 
-	void getCmdOut( const std::string &cmd,std::string &s )
-	{
-		procOnceOut poo( NULL );
+		execCmd(s);
 
-		callPopen( cmd,&poo );
-
-		s = poo.allOut;
-	}
-
-	struct monitorArg
-	{
-		std::string cmd;
-
-		void (*monitor)(const std::string &line,void *);
-		void *arg;
-	};
-
-	static void monitorThr( void *d )
-	{
-		monitorArg *ma = (monitorArg*)d;
-		
-		cmdOutMonitor m(ma->monitor,ma->arg);
-
-		callPopen( ma->cmd,&m );
-
-		delete ma;
+		return 0;
 	}
 
-	void monitorCmdOut( const std::string &cmd,void (*monitor)(const std::string &line,void *),void *arg)
+	int lua_exec( lua_State *L )
 	{
-		monitorArg *ma = new monitorArg;
+		int n = lua_gettop(L);
+		if( n < 1 )
+		{
+			lua_pushliteral(L,"no argument when to call popen.");
+			return lua_error(L);
+		}
 
-		ma->cmd = cmd;
-		ma->monitor = monitor;
-		ma->arg = arg;
+		if( !lua_isstring(L,-1) )
+		{
+			lua_pushliteral(L,"the argument is not string when to call popen.");
+			return lua_error(L);
+		}
 
-		::_beginthread(monitorThr,0,ma);
+		std::string s = lua_tostring(L,-1);
+		lua_pop( L,1 );
+
+		execCmdAsync(s);
+
+		return 0;
+	}
+
+	void popen_reg(lua_State *L )
+	{
+		lua_register( L,"popen",lua_popen );
+		lua_register( L,"system",lua_system );
+		lua_register( L,"exec",lua_exec );
 	}
 };

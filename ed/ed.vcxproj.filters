@@ -183,6 +183,9 @@
     <ClInclude Include="sqlite\sqlite3ext.h">
       <Filter>sqlite</Filter>
     </ClInclude>
+    <ClInclude Include="tcp_udp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

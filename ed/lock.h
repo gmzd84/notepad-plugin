@@ -28,9 +28,10 @@ public:
 
 class Guard
 {
-	absLock m_lock;
+	absLock &m_lock;
 public:
-	Guard()
+	Guard(absLock &l)
+		:m_lock(l)
 	{
 		m_lock.lock();
 	}
@@ -74,7 +75,7 @@ public:
 
 				//if (!TranslateAccelerator(msg.hwnd, NULL, &msg))
 				{
-					TranslateMessage(&msg);  // 处理键盘消息,没有这一名 edit 控件不正常
+					TranslateMessage(&msg);  // 处理键盘消息,没有这一句 edit 控件不正常
 					DispatchMessage(&msg);
 				}
 			}
@@ -90,9 +91,10 @@ public:
 
 class msgGuard
 {
-	msgLock m_lock;
+	msgLock &m_lock;
 public:
-	msgGuard()
+	msgGuard(msgLock &m)
+		:m_lock(m)
 	{
 		m_lock.lock();
 	}

@@ -149,6 +149,8 @@ extern "C"{
 	void unique_text();
 	void sort_text();
 	void html_encode();
+	void html_decode();
+
 
 	FuncItem g_fi[] = {
 		{TEXT("lua run"),lua_run,0,false,NULL},
@@ -158,6 +160,7 @@ extern "C"{
 		{TEXT("unique"),unique_text,4,false,NULL},
 		{TEXT("sort"),sort_text,5,false,NULL},
 		{TEXT("html encode"),html_encode,6,false,NULL},
+		{TEXT("html decode"),html_decode,6,false,NULL},
 	};
 
 	void setInfo(NppData nd)
