@@ -35,6 +35,9 @@ extern NppData g_nppData;
 
 std::string uint_to_str( unsigned long long d );
 
+struct lua_State;
+void lua_reg_fun( lua_State *L,const char * fn,int (*pfn)( lua_State * ),const char *desc );
+
 void getText( std::string &t );
 void getSelText( std::string &t );
 void appendText( const std::string &t );

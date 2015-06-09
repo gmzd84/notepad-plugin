@@ -1,15 +1,36 @@
 
 #include <string>
+#include <map>
 
 #include "stdafx.h"
 
 #include "lua/lua.hpp"
 
 
-const char *lua_help = 
-	""
-	;
+std::map<std::string,std::string> g_luaFunDesc;
 
+void lua_reg_fun( lua_State *L,const char * fn,int (*pfn)( lua_State * ),const char *desc )
+{
+	lua_register( L,fn,pfn );
+
+	g_luaFunDesc[fn] = desc;
+}
+
+std::string lua_help()
+{
+	std::string ret;
+
+	for( auto i=g_luaFunDesc.begin();i!=g_luaFunDesc.end();++i )
+	{
+		ret += i->first;
+		ret += ": ";
+		ret += i->second;
+		ret += "\r\n";
+	}
+
+
+	return ret;
+}
 
 extern "C"
 {
@@ -114,7 +135,7 @@ extern "C"
 		std::string s = lua_tostring(L,-1);
 		lua_pop( L,1 );
 
-		showInfo( "lua message", s,lua_help );
+		showInfo( "lua message", s,lua_help() );
 		return 0;
 	}
 
@@ -195,16 +216,16 @@ extern "C"
 
 	void regLuaFun(lua_State *L)
 	{
-		lua_register( L,"getText",lua_getText );
-		lua_register( L,"getSelText",lua_getSelText );
-		lua_register( L,"setText",lua_setText );
-		lua_register( L,"appendText",lua_appendText );
-		lua_register( L,"replaceSel",lua_replaceSel );
+		lua_reg_fun( L,"getText",lua_getText,"string getText()" );
+		lua_reg_fun( L,"getSelText",lua_getSelText,"string getSelText()" );
+		lua_reg_fun( L,"setText",lua_setText,"void setText(string)" );
+		lua_reg_fun( L,"appendText",lua_appendText,"void appendText(string)" );
+		lua_reg_fun( L,"replaceSel",lua_replaceSel,"void replaceSel(string)" );
 
-		lua_register( L,"msg",lua_msg );
-		lua_register( L,"msg2",lua_msg2 );
-		lua_register( L,"confirm",lua_confirm );
-		lua_register( L,"prompt",lua_prompt );
+		lua_reg_fun( L,"msg",lua_msg,"void msg(string)" );
+		lua_reg_fun( L,"msg2",lua_msg2,"void msg2(string)" );
+		lua_reg_fun( L,"confirm",lua_confirm,"int confirm(string)" );
+		lua_reg_fun( L,"prompt",lua_prompt,"string prompt(string)" );
 
 		scan_reg( L );
 		popen_reg( L );
@@ -232,7 +253,7 @@ extern "C"
 
 			lua_pop(L,1);
 
-			showInfo("lua error",es,lua_help);
+			showInfo("lua error",es,lua_help());
 		}
 
 

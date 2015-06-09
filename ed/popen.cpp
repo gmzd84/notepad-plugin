@@ -6,6 +6,8 @@
 
 #include "lua/lua.hpp"
 
+#include "stdafx.h"
+
 struct popenOutProc
 {
 	virtual void begin() {}
@@ -253,8 +255,8 @@ extern "C"
 
 	void popen_reg(lua_State *L )
 	{
-		lua_register( L,"popen",lua_popen );
-		lua_register( L,"system",lua_system );
-		lua_register( L,"exec",lua_exec );
+		lua_reg_fun( L,"popen",lua_popen,"string popen(cmd)" );
+		lua_reg_fun( L,"system",lua_system,"void system(cmd)" );
+		lua_reg_fun( L,"exec",lua_exec,"void exec(cmd)" );
 	}
 };

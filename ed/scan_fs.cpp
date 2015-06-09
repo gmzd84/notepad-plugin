@@ -257,6 +257,6 @@ extern "C"
 
 	void scan_reg( lua_State *L )
 	{
-		lua_register( L,"scanDir",lua_scandir );
+		lua_reg_fun( L,"scanDir",lua_scandir,"void scanDir( dirname,lunfunname,resursive ),bool lunfun(path,size,type)" );
 	}
 }
