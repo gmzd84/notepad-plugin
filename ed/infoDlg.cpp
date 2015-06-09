@@ -107,6 +107,10 @@ BOOL CALLBACK infoDlg::run_dlgProc(UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			case IDCANCEL:
 				lock();
+				if( m_infos.size() )
+				{
+					m_infos.pop_front();
+				}
 				if( m_infos.empty() )
 				{
 					display(false);
@@ -183,7 +187,6 @@ void infoDlg::setInfo()
 	if( m_infos.size() )
 	{
 		si = m_infos.front();
-		m_infos.pop_front();
 	}
 	unlock();
 

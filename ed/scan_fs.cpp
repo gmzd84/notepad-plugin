@@ -3,10 +3,13 @@
 #include <direct.h>
 
 #include <string>
+#include <list>
 
 #include "lua/lua.hpp"
 
 #include "stdafx.h"
+
+#include <iostream>
 
 struct find_info_s
 {
@@ -14,83 +17,168 @@ struct find_info_s
 	std::string cur_dir;
 };
 
-void scan_dir( const std::string &dirname,bool recursive ,bool (*fn)(const std::string &n,unsigned s,unsigned t,void *),void *arg )
+struct scanDirOp
+{
+	virtual bool scan_file( const std::string &n,unsigned s,unsigned t ) = 0;
+
+	virtual void enter_dir( const std::string &d ) {}
+	virtual void leave_dir( const std::string &d ) {}
+	virtual void error( const std::string &e ) {}
+};
+
+bool get_next_data( std::list<find_info_s> & hdls,_finddata_t &d,scanDirOp &op )
+{
+	while( hdls.size() )
+	{
+		find_info_s &fi = hdls.back();
+
+		int r = _findnext( fi.hdl,&d );
+		if( r < 0 )
+		{
+			op.leave_dir( fi.cur_dir );
+
+			_findclose( fi.hdl );
+
+			hdls.pop_back();
+		}
+		else
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void scan_dir_ext( const std::string &dirname,bool recursive, scanDirOp &op )
 {
 	_finddata_t data = {0};
 
 	std::string path = dirname;
-	path += "\\";
-	path += "*.*";
+	path += "\\*";
 
 	intptr_t hdl = ::_findfirst( path.c_str(),&data );
-
-	if( hdl <= 0 )
+	if( hdl < 0 )
 	{
-		::MessageBoxA(NULL,path.c_str(),"Error",MB_OK );
+		op.error("the path is not valid.");
 		return;
 	}
 
-	std::vector<find_info_s> hdls;
+	std::list<find_info_s> hdls;
 	hdls.push_back( find_info_s() );
-	hdls.back().hdl = hdl;
+	hdls.back().hdl     = hdl;
 	hdls.back().cur_dir = dirname;
 
-	do
+	op.enter_dir( dirname );
+
+	while( !hdls.empty() )
 	{
-		std::string p = hdls.back().cur_dir ;
-		p += "\\";
-		p += data.name;
+		find_info_s &fi = hdls.back();
 
-		if( NULL == fn || !fn( p,data.size,data.attrib,arg ) )
+		if( _A_SUBDIR == data.attrib )
 		{
-			for( auto i=hdls.begin();i!=hdls.end();++i )
+			if( std::string(".") == data.name 
+				|| std::string("..") == data.name )
 			{
-				_findclose(i->hdl); 
+				if( !get_next_data( hdls,data,op ) )
+				{
+					// 
+					return;
+				}
 			}
-
-			hdls.erase(hdls.begin(),hdls.end());
-
-			break;
-		}
-		
-		if( recursive 
-			&& 16 == data.attrib 
-			&& 0 != strcmp( ".",data.name )
-			&& 0 != strcmp( "..",data.name )
-			)
-		{
-			// 目录
-			find_info_s t;
-			t.cur_dir = p;
-
-			p += "\\";
-			p += "*.*";
-			t.hdl = ::_findfirst( p.c_str(),&data );
-			
-			hdls.push_back( t );
-		}
-		else
-		{
-			memset( &data,0,sizeof(data) );
-
-			if( _findnext(hdls.back().hdl,&data) == 0 ) 
+			else if( recursive )
 			{
-				// 成功
+				std::string tp = fi.cur_dir;
+				tp += "\\";
+				tp += data.name;
+
+				path = tp;
+				path += "\\*";
+
+				hdl = ::_findfirst( path.c_str(),&data );
+				if( hdl < 0 )
+				{
+					if( !get_next_data( hdls,data,op ) )
+					{
+						// 
+						return;
+					}
+				}
+				else
+				{
+					hdls.push_back( find_info_s() );
+					hdls.back().hdl     = hdl;
+					hdls.back().cur_dir = tp;
+
+					op.enter_dir( tp );
+				}
 			}
 			else
 			{
-				// 失败，表示此目录已经查找完毕
-				_findclose(hdls.back().hdl); 
+				std::string p = fi.cur_dir;
+				p += "\\";
+				p += data.name;
 
-				hdls.pop_back();
-				if( hdls.empty() )
+				if( !op.scan_file(p,data.size,data.attrib) )
 				{
-					break;
+					return;
+				}
+
+				if( !get_next_data( hdls,data,op ) )
+				{
+					// 
+					return;
 				}
 			}
 		}
-	}while( 1 );
+		else
+		{
+			std::string p = fi.cur_dir;
+			p += "\\";
+			p += data.name;
+				
+			if( !op.scan_file(p,data.size,data.attrib) )
+			{
+				return;
+			}
+
+			if( !get_next_data( hdls,data,op ) )
+			{
+				// 
+				return;
+			}
+		}
+	}
 }
+
+struct luaScanDirOp : scanDirOp
+{
+	bool recursive ;
+	bool (*fn)(const std::string &n,unsigned s,unsigned t,void *);
+	void *arg;
+
+	virtual bool scan_file( const std::string &n,unsigned s,unsigned t )
+	{
+		if( !fn )
+		{
+			return false;
+		}
+		return fn( n,s,t,arg );
+	}
+};
+void scan_dir( const std::string &dirname,bool recursive ,bool (*fn)(const std::string &n,unsigned s,unsigned t,void *),void *arg )
+{
+	luaScanDirOp op;
+	op.recursive = recursive;
+	op.fn = fn;
+	op.arg = arg;
+
+	scan_dir_ext( dirname,recursive,op );
+}
+
+
+
+
 
 extern "C"
 {
@@ -133,7 +221,7 @@ extern "C"
 
 		int r = lua_toboolean( pmon->L,-1 );
 		lua_pop(pmon->L,1 );
-
+		
 		return r != 0;
 	}
 
