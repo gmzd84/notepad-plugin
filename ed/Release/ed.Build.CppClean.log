@@ -7,7 +7,6 @@ E:\MYPROGRAM\ED\ED\RELEASE\TINYXMLPARSER.OBJ
 E:\MYPROGRAM\ED\ED\RELEASE\TINYXMLERROR.OBJ
 E:\MYPROGRAM\ED\ED\RELEASE\TINYXML.OBJ
 E:\MYPROGRAM\ED\ED\RELEASE\TINYSTR.OBJ
-E:\MYPROGRAM\ED\ED\RELEASE\TCP_UDP.OBJ
 E:\MYPROGRAM\ED\ED\RELEASE\STREXT.OBJ
 E:\MYPROGRAM\ED\ED\RELEASE\STATICDIALOG.OBJ
 E:\MYPROGRAM\ED\ED\RELEASE\SCAN_FS.OBJ
@@ -54,6 +53,7 @@ E:\MYPROGRAM\ED\ED\RELEASE\LSTATE.OBJ
 E:\MYPROGRAM\ED\ED\RELEASE\LPARSER.OBJ
 E:\MYPROGRAM\ED\ED\RELEASE\LOSLIB.OBJ
 E:\MYPROGRAM\ED\ED\RELEASE\LOPCODES.OBJ
+E:\MYPROGRAM\ED\ED\RELEASE\TCP_UDP.OBJ
 E:\MyProgram\ed\Release\ed.lib
 E:\MyProgram\ed\Release\ed.exp
 E:\MYPROGRAM\ED\RELEASE\ED.DLL
@@ -123,6 +123,8 @@ E:\MyProgram\ed\ed\Release\link-rc.read.1.tlog
 E:\MyProgram\ed\ed\Release\link-rc.write.1.tlog
 E:\MyProgram\ed\ed\Release\link.command.1.tlog
 E:\MyProgram\ed\ed\Release\link.read.1.tlog
+E:\MyProgram\ed\ed\Release\link.read.3.tlog
+E:\MyProgram\ed\ed\Release\link.read.4.tlog
 E:\MyProgram\ed\ed\Release\link.write.1.tlog
 E:\MyProgram\ed\ed\Release\rc.command.1.tlog
 E:\MyProgram\ed\ed\Release\rc.read.1.tlog

@@ -6,6 +6,7 @@
 #include <string>
 #include <map>
 #include <sstream>
+#include <list>
 
 #include "strExt.h"
 #include "lock.h"
@@ -14,14 +15,18 @@
 
 #pragma comment( lib,"ws2_32.lib" )
 
-namespace {
 
+void sock_thr( void *d );
+
+namespace {
 	struct socketInit
 	{
 		socketInit()
 		{
 			WSADATA d;
 			::WSAStartup(MAKEWORD(2,2),&d);
+
+			::_beginthread( sock_thr,(128<<10),NULL );
 		}
 		~socketInit()
 		{
@@ -32,38 +37,326 @@ namespace {
 
 struct socket_info_s
 {
-	SOCKET s;
-
-	bool istcp;
-	bool isclient;
+	static const std::string OK;
 
 	socket_info_s()
 		:s(INVALID_SOCKET),
 		istcp(false),
 		isclient(true)
 	{}
+
+	
+
+	~socket_info_s()
+	{
+		if( !isNullSocket() )
+		{
+			close();
+
+			wait_notify.notify();
+		}
+	}
+	void close()
+	{
+		if( INVALID_SOCKET != s )
+		{
+			closesocket(s);
+			s = INVALID_SOCKET;
+		}
+	}
+
+	void reset(SOCKET s,bool istcp,bool isclient)
+	{
+		if( !isNullSocket() )
+		{
+			close();
+		}
+
+		socket_info_s::s = s;
+		socket_info_s::istcp = istcp;
+		socket_info_s::isclient = isclient;
+	}
+
+	void operator=( socket_info_s &r )
+	{
+		reset( r.s,r.istcp,r.isclient );
+
+		r.reset( INVALID_SOCKET,false,false );
+	}
+
+	bool init( const std::string & sip,unsigned short port,bool istcp,bool isclient)
+	{
+		if( !isNullSocket() )
+		{
+			close();
+		}
+
+		this->istcp = istcp;
+		this->isclient = isclient;
+
+		if( istcp )
+		{
+			s = ::socket(AF_INET,SOCK_STREAM,IPPROTO_TCP );
+		}
+		else
+		{
+			s = ::socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP );
+		}
+
+		if( INVALID_SOCKET == s )
+		{
+			return false;
+		}	
+
+		unsigned ip = (unsigned)str_to_uint(sip);
+
+		struct sockaddr_in sin = {0};
+		sin.sin_family = AF_INET;
+		sin.sin_addr.S_un.S_addr   = ip;
+		sin.sin_port = htons( port );
+
+		if( !isclient )
+		{
+			// 服务端要绑定
+			int ret = ::bind( s,(sockaddr*)&sin,sizeof(sin) );
+			if( SOCKET_ERROR == ret )
+			{
+				close();
+
+				return false;
+			}
+
+			if( istcp )
+			{
+				int ret = listen( s,0 );
+				if( SOCKET_ERROR == ret )
+				{
+					close();
+
+					return false;
+				}
+			}
+		}
+		else
+		{
+			// 客户端 TCP 要连接
+			if( istcp )
+			{
+				int ret = ::connect(s,(sockaddr*)&sin,sizeof(sin));
+				if( SOCKET_ERROR == ret )
+				{
+					close();
+
+					return false;
+				}
+			}
+		}
+	}
+
+	bool isNullSocket()
+	{
+		return s == INVALID_SOCKET;
+	}
+
+	std::string recv( char *buf,int &len )
+	{
+		wait_notify.wait();
+
+		int ret = ::recv( s,buf,len,0 );
+
+		if( ret < 0 )
+		{
+			// 失败
+			return std::string("error");
+		}
+		else if( ret == 0 )
+		{
+			// 超时
+			return std::string("timeout");
+		}
+		else
+		{
+			len = ret;
+			return std::string("ok");
+		}		
+	}
+
+	std::string send( char *buf,int &len )
+	{
+		int ret = ::send( s,buf,len,0 );
+
+		if( ret < 0 )
+		{
+			// 失败
+			return std::string("error");
+		}
+		else if( ret == 0 )
+		{
+			// 超时
+			return std::string("timeout");
+		}
+		else
+		{
+			len = ret;
+			return std::string("ok");
+		}		
+	}
+
+	std::string recv_from( char *buf,int &len,sockaddr &sa )
+	{
+		wait_notify.wait();
+
+		int slen = sizeof(sa);
+
+		int ret = ::recvfrom( s,buf,len,0,(sockaddr*)&sa,&slen );
+
+		if( ret < 0 )
+		{
+			// 失败
+			return std::string("error");
+		}
+		else if( ret == 0 )
+		{
+			// 超时
+			return std::string("timeout");
+		}
+		else
+		{
+			len = ret;
+			return std::string("ok");
+		}		
+	}
+
+	std::string send_to( char *buf,int &len,sockaddr &sa )
+	{
+		int ret = ::sendto( s,buf,len,0,&sa,sizeof(sa) );
+
+		if( ret < 0 )
+		{
+			// 失败
+			return std::string("error");
+		}
+		else if( ret == 0 )
+		{
+			// 超时
+			return std::string("timeout");
+		}
+		else
+		{
+			len = ret;
+			return std::string("ok");
+		}		
+	}
+
+	SOCKET socket()
+	{
+		return s;
+	}
+
+	void notify()
+	{
+		wait_notify.notify();
+	}
+	void wait()
+	{
+		wait_notify.wait();
+	}
+protected:
+	SOCKET s;
+	waitNotifyLock wait_notify; 
+
+	bool istcp;
+	bool isclient;
 };
+
+const std::string socket_info_s::OK("ok");
+
 static socket_info_s gs_nullSocket;
-bool isNullSocket(socket_info_s &s)
-{
-	return s.s == INVALID_SOCKET;
-}
 
 struct socket_mgr_s
 {
 	std::map<std::string,socket_info_s> connectInfo;
 	msgLock lock;
 
+	unsigned init_val;
+
+	static const unsigned MAGIC = 0x789abcdeUL;;
+
+	socket_mgr_s()
+	{
+		init_val = MAGIC;
+	}
+
 	~socket_mgr_s()
 	{
-		for( auto i = connectInfo.begin();i!=connectInfo.end();++i )
-		{
-			::closesocket( i->second.s );
-			i->second.s = INVALID_SOCKET;
-		}
+		
+	}
+
+	bool is_init()
+	{
+		return socket_mgr_s::MAGIC != init_val;
 	}
 };
 static socket_mgr_s gs_socketMgr;
+
+static void sock_thr( void *d )
+{
+	// 等待变量初始化
+	while(  !gs_socketMgr.is_init() )
+	{
+		Sleep(3);
+	}
+
+	//
+	while( 1 )
+	{
+		Sleep( 2 );
+
+		fd_set fs;
+		FD_ZERO(&fs);
+
+		unsigned cnt = 0;
+
+		{
+			msgGuard mg(gs_socketMgr.lock);
+
+			for( auto i=gs_socketMgr.connectInfo.begin();i != gs_socketMgr.connectInfo.end(); ++i )
+			{
+				FD_SET( i->second.socket(),&fs );
+
+				++cnt;
+			}
+		}
+		
+
+		timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = 8*1000;
+
+		int ret = select( cnt,&fs,NULL,NULL,&tv );
+
+		if( ret < 0 )
+		{
+			// 失败
+		}
+		else if( ret == 0 )
+		{
+			// 超时
+		}
+		else
+		{
+			msgGuard mg2(gs_socketMgr.lock);
+
+			for( auto i=gs_socketMgr.connectInfo.begin();i != gs_socketMgr.connectInfo.end(); ++i )
+			{
+				if( FD_ISSET( i->second.socket(),&fs ) )
+				{
+					i->second.notify();
+				}
+			}
+		}
+	}
+}
 
 
 static std::string getConnPos( const std::string & sip,unsigned short port )
@@ -101,78 +394,8 @@ socket_info_s &getSocket( const std::string & sip,unsigned short port,bool istcp
 
 	// 创建一个新的连接
 
-	SOCKET s = INVALID_SOCKET;
-	
-	if( istcp )
-	{
-		s = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP );
-	}
-	else
-	{
-		s = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP );
-	}
-
-	if( INVALID_SOCKET == s )
-	{
-		return gs_nullSocket;
-	}	
-
-
-	std::string ssi,sp;
-	str_break( ci,":",ssi,sp );
-	unsigned ip = (unsigned)str_to_uint(ssi);
-
-	struct sockaddr_in sin = {0};
-	sin.sin_family = AF_INET;
-	sin.sin_addr.S_un.S_addr   = ip;
-	sin.sin_port = htons( port );
-
-	if( !isclient )
-	{
-		// 服务端要绑定
-		int ret = bind( s,(sockaddr*)&sin,sizeof(sin) );
-		if( SOCKET_ERROR == ret )
-		{
-			closesocket(s);
-
-			std::string err = "Failed to bind port :";
-			err + ci;
-			::MessageBoxA(NULL,err.c_str(),"Error",MB_OK );
-			return gs_nullSocket;
-		}
-
-		if( istcp )
-		{
-			int ret = listen( s,0 );
-			if( SOCKET_ERROR == ret )
-			{
-				closesocket(s);
-				return gs_nullSocket;
-			}
-		}
-	}
-	else
-	{
-		// 客户端 TCP 要连接
-		if( istcp )
-		{
-			int ret = ::connect(s,(sockaddr*)&sin,sizeof(sin));
-			if( SOCKET_ERROR == ret )
-			{
-				closesocket(s);
-
-				std::string err = "Failed to connect to port :";
-				err + ci;
-				::MessageBoxA(NULL,err.c_str(),"Error",MB_OK );
-				return gs_nullSocket;
-			}
-		}
-	}
-
 	socket_info_s &si = gs_socketMgr.connectInfo[ci];
-	si.s = s;
-	si.isclient = isclient;
-	si.istcp    = istcp;
+	si.init( sip,port,istcp,isclient );
 
 	return si;
 }
@@ -203,8 +426,6 @@ void releaseSocket( const std::string &pos )
 	auto c = gs_socketMgr.connectInfo.find(pos);
 	if( c != gs_socketMgr.connectInfo.end() )
 	{
-		::closesocket( c->second.s );
-		c->second.s = INVALID_SOCKET;
 		gs_socketMgr.connectInfo.erase( c );
 	}
 }
@@ -228,9 +449,9 @@ struct socketRsArg
 };
 
 
-void udp_rs( SOCKET s,void *arg )
+void udp_rs( socket_info_s& s,void *arg )
 {
-	const int len = 8*1024;
+	int len = 8*1024;
 	char *buf = new char[len+1];
 
 	struct sockaddr sa = {0};
@@ -240,21 +461,22 @@ void udp_rs( SOCKET s,void *arg )
 
 	while( 1 )
 	{
-		int ret = recvfrom( s,buf,len,0,(sockaddr*)&sa,&slen );
-		if( SOCKET_ERROR == ret )
+		std::string ret = s.recv_from( buf,len,sa );
+		if( socket_info_s::OK == ret )
 		{
 			break;
 		}
 
 		std::string rcv;
-		rcv.append( buf,ret );
+		rcv.append( buf,len );
 
 		std::string snd;
 		bool goon = sra->fn( rcv,snd,sra->arg );
 
 		if(snd.size())
 		{
-			sendto( s,snd.c_str(),snd.size(),0,&sa,sizeof(sa) );
+			int len = snd.size();
+			s.send_to( (char*)snd.c_str(),len,sa );
 		}
 		
 		if( !goon )
@@ -267,7 +489,7 @@ void udp_rs( SOCKET s,void *arg )
 	delete sra;
 }
 
-void tcp_rs( SOCKET s,void *arg )
+void tcp_rs( socket_info_s& s,void *arg )
 {
 	const int len = 8*1024;
 	char *buf = new char[len+1];
@@ -276,21 +498,24 @@ void tcp_rs( SOCKET s,void *arg )
 
 	while( 1 )
 	{
-		int ret = recv( s,buf,len,0 );
-		if( SOCKET_ERROR == ret )
+		int si = len;
+		std::string ret = s.recv( buf,si );
+		if( socket_info_s::OK == ret )
 		{
 			break;
 		}
 
 		std::string rcv;
-		rcv.append( buf,ret );
+		rcv.append( buf,si );
 
 		std::string snd;
 		bool goon = sra->fn( rcv,snd,sra->arg );
 
 		if(snd.size())
 		{
-			send( s,snd.c_str(),snd.size(),0 );
+			int c=snd.size();
+
+			s.send( (char*)snd.c_str(),c );
 		}
 
 		if( !goon )
@@ -302,7 +527,7 @@ void tcp_rs( SOCKET s,void *arg )
 	delete []buf;
 	delete sra;
 }
-void udp_listen(const char *sip,unsigned short port,void (*fn)(SOCKET s,void*),void*arg )
+void udp_listen(const char *sip,unsigned short port,void (*fn)(socket_info_s& s,void*),void*arg )
 {
 	if( !port || !fn )
 	{
@@ -310,12 +535,12 @@ void udp_listen(const char *sip,unsigned short port,void (*fn)(SOCKET s,void*),v
 	}
 
 	socket_info_s &s = getSocket( sip,port,false,false );
-	if( isNullSocket(s) )
+	if( s.isNullSocket() )
 	{
 		return ;
 	}
-
-	fn( s.s,arg );
+	
+	fn( s,arg );
 
 	releaseSocket( sip,port );
 
@@ -345,22 +570,53 @@ void udp_listen(const std::string &conn,bool (*fn)(const std::string &,std::stri
 struct tcpThrArg
 {
 	SOCKET s;
-	void (*fn)(SOCKET s,void*);
+	void (*fn)(socket_info_s& s,void*);
 	void *arg;
+
+	tcpThrArg()
+		:s( INVALID_SOCKET),
+		fn( NULL ),
+		arg(NULL)
+	{
+
+	}
+
+	~tcpThrArg()
+	{
+		if( INVALID_SOCKET != s )
+		{
+			::closesocket(s);
+			s = INVALID_SOCKET;
+		}
+	}
+
 };
 
 void tcpThrFun( void *d )
 {
 	tcpThrArg *tta = (tcpThrArg*)d;
 
-	tta->fn( tta->s,tta->arg );
+	socket_info_s *si = NULL;
 
-	closesocket( tta->s );
+	std::string pos = uint_to_str(tta->s);
+	{
+		msgGuard g(gs_socketMgr.lock);
+
+		si = &gs_socketMgr.connectInfo[pos];
+	}
+
+	si->reset( tta->s,true,false );
+
+	tta->s = INVALID_SOCKET;
+
+	tta->fn( *si,tta->arg );
+
+	releaseSocket( pos );
 
 	delete tta;
 }
 
-void tcp_listen(const char *sip,unsigned short port,void (*fn)(SOCKET s,void*),void*arg )
+void tcp_listen(const char *sip,unsigned short port,void (*fn)(socket_info_s& s,void*),void*arg )
 {
 	if( !port || !fn )
 	{
@@ -368,7 +624,7 @@ void tcp_listen(const char *sip,unsigned short port,void (*fn)(SOCKET s,void*),v
 	}
 
 	socket_info_s &s = getSocket( sip,port,true,false );
-	if( isNullSocket(s) )
+	if( s.isNullSocket() )
 	{
 		return ;
 	}
@@ -381,20 +637,22 @@ void tcp_listen(const char *sip,unsigned short port,void (*fn)(SOCKET s,void*),v
 
 	//while( 1 )  lua 不支持多线程
 	{
-		SOCKET ns = accept( s.s,&sa,&flen );
+		s.wait();
+
+		SOCKET ns = accept( s.socket(),&sa,&flen );
 		if( INVALID_SOCKET == ns )
 		{
 			goto tcp_listen_end;
 		}	
 
 		tcpThrArg *tta = new tcpThrArg;
-		tta->s   = ns;
+		tta->s = ns;
+
 		tta->fn  = fn;
-		tta->arg = new socketRsArg;
+		tta->arg = arg;
 
-		*(socketRsArg*)(tta->arg) = *sra;
-
-		::_beginthread( tcpThrFun,0,tta );
+		//::_beginthread( tcpThrFun,0,tta );
+		tcpThrFun( tta );
 	}
 
 tcp_listen_end:
@@ -428,7 +686,7 @@ void tcp_listen(const std::string &conn,bool (*fn)(const std::string &,std::stri
 bool udp_send_wait( const char *sip,unsigned port,const std::string &snd,char *buf,int &len )
 {
 	socket_info_s &s = getSocket( sip,port,false,true );
-	if( isNullSocket(s ) )
+	if( s.isNullSocket( ) )
 	{
 		return false;
 	}
@@ -443,9 +701,10 @@ bool udp_send_wait( const char *sip,unsigned port,const std::string &snd,char *b
 	sin.sin_addr.S_un.S_addr   = ip;
 	sin.sin_port = htons( port );
 
-	int ret = sendto( s.s,snd.c_str(),snd.size(),0,(sockaddr*)&sin,sizeof(sin) );
+	int ss = snd.size();
+	std::string ret = s.send_to( (char*)snd.c_str(),ss,*(sockaddr*)&sin );
 
-	if( SOCKET_ERROR == ret )
+	if( socket_info_s::OK != ret )
 	{
 		releaseSocket( ci );
 
@@ -456,16 +715,14 @@ bool udp_send_wait( const char *sip,unsigned port,const std::string &snd,char *b
 	{
 		struct sockaddr sa={0};
 		int len = sizeof(sa);
-
-		ret = recvfrom( s.s,buf,len,0,&sa,&len );
-		if( SOCKET_ERROR == ret )
+		
+		ret = s.recv_from( (char*)buf,len,*(sockaddr*)&sa );
+		if( socket_info_s::OK != ret )
 		{
 			releaseSocket(ci);
 
 			return false;
 		}
-
-		len = ret;
 	}
 
 	return true;
@@ -475,14 +732,15 @@ bool udp_send_wait( const char *sip,unsigned port,const std::string &snd,char *b
 bool tcp_send_wait( const char *sip,unsigned port,const std::string &snd,char *buf,int &len )
 {
 	socket_info_s &s = getSocket( sip,port,true,true );
-	if( isNullSocket(s ) )
+	if( s.isNullSocket() )
 	{
 		return false;
 	}
 
-	int ret = send( s.s,snd.c_str(),snd.size(),0 );
+	int ss = snd.size();
+	std::string ret = s.send( (char*)snd.c_str(),ss );
 
-	if( SOCKET_ERROR == ret )
+	if( socket_info_s::OK != ret )
 	{
 		releaseSocket(sip,port);
 
@@ -491,15 +749,15 @@ bool tcp_send_wait( const char *sip,unsigned port,const std::string &snd,char *b
 
 	if( buf && len )
 	{
-		ret = recv( s.s,buf,len,0 );
-		if( SOCKET_ERROR == ret )
+		std::string ret = s.recv( buf,len );
+		if( socket_info_s::OK != ret )
 		{
 			releaseSocket(sip,port);
 
 			return false;
 		}
 
-		len = ret;
+		len = 1;
 	}
 
 	return true;
@@ -586,7 +844,7 @@ bool udp_rcv( const std::string &conn,std::string &rcv )
 {
 	socket_info_s &s = getSocket( conn,false,true );
 	
-	if( isNullSocket(s) )
+	if( s.isNullSocket() )
 	{
 		return false;
 	}
@@ -594,18 +852,19 @@ bool udp_rcv( const std::string &conn,std::string &rcv )
 	struct sockaddr sa = {0};
 	int slen = sizeof(sa);
 
-	const int len = 8*1024;
+	int len = 8*1024;
 	char *buf = new char[len+1];
 
-	int ret = recvfrom( s.s,buf,len,0,(sockaddr*)&sa,&slen );
-	if( SOCKET_ERROR == ret )
+
+	std::string ret = s.recv_from( buf,len,sa );
+	if( socket_info_s::OK != ret )
 	{
 		releaseSocket(conn);
 		return false;
 	}
 
 	rcv = "";
-	rcv.append( buf,ret );
+	rcv.append( buf,len );
 
 	return true;
 }
@@ -614,23 +873,24 @@ bool tcp_rcv( const std::string &conn,std::string &rcv )
 {
 	socket_info_s &s = getSocket( conn,false,true );
 	
-	if( isNullSocket(s) )
+	if( s.isNullSocket() )
 	{
 		return false;
 	}
 	
-	const int len = 8*1024;
+	int len = 8*1024;
 	char *buf = new char[len+1];
 
-	int ret = recv( s.s,buf,len,0 );
-	if( SOCKET_ERROR == ret )
+
+	std::string ret = s.recv( buf,len );
+	if( socket_info_s::OK != ret )
 	{
 		releaseSocket(conn);
 		return false;
 	}
 
 	rcv = "";
-	rcv.append( buf,ret );
+	rcv.append( buf,len );
 
 	return true;
 }
