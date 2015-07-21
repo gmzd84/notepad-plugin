@@ -151,6 +151,8 @@ struct socket_info_s
 				}
 			}
 		}
+
+		return true;
 	}
 
 	bool isNullSocket()

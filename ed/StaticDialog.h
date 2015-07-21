@@ -107,4 +107,10 @@ protected :
 	HGLOBAL makeRTLResource(int dialogID, DLGTEMPLATE **ppMyDlgTemplate);
 };
 
+struct scanWinOp
+{
+	virtual bool operator()(HWND hWnd)=0;
+};
+void scanChildWin(HWND top,scanWinOp &op);
+
 #endif //STATIC_DIALOG_H

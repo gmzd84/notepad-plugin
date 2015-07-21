@@ -187,16 +187,17 @@ void StaticDialog::alignWith(HWND handle, HWND handle2Align, PosAlign pos, POINT
     ::ScreenToClient(_hSelf, &point);
 }
 
-void StaticDialog::setFont()
+
+
+void scanChildWin(HWND top,scanWinOp &op)
 {
-	HWND wnd = GetWindow( _hSelf,GW_CHILD );
+	HWND wnd = GetWindow( top,GW_CHILD );
 
 	if( !wnd )
 	{
 		return;
 	}
 
-	HFONT hfont = (HFONT)::SendMessage( _hSelf, WM_GETFONT, 0, 0 );
 
 	std::vector<HWND> wnds;
 	wnds.push_back(wnd);
@@ -207,7 +208,10 @@ void StaticDialog::setFont()
 
 		wnds.pop_back();
 
-		::SendMessage( w,WM_SETFONT,(WPARAM)hfont,0 );
+		if( !op( w ) )
+		{
+			break;
+		}
 
 		HWND s = ::GetWindow( w,GW_HWNDNEXT );
 		if(s)
@@ -221,4 +225,28 @@ void StaticDialog::setFont()
 			wnds.push_back(c);
 		}
 	}
+}
+
+ struct scanSetFont : scanWinOp
+ {
+	 HFONT hfont;
+
+	 scanSetFont( HWND p )
+	 {
+		 hfont = (HFONT)::SendMessage( p, WM_GETFONT, 0, 0 );
+	 }
+
+	 virtual bool operator()(HWND hWnd)
+	 {
+		 ::SendMessage( hWnd,WM_SETFONT,(WPARAM)hfont,0 );
+
+		 return true;
+	 }
+ };
+
+void StaticDialog::setFont()
+{
+	scanSetFont sf( _hSelf );
+
+	scanChildWin( _hSelf,sf );
 }
